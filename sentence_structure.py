@@ -1,6 +1,7 @@
 import nltk
 import re
 import spacy
+from spacy.lang.en import English
 import pattern.en as pattern
 
 # grammar = nltk.CFG.fromstring("""
@@ -45,7 +46,7 @@ post = "Personally I dont do that because I know better even when there are time
 # using spacy
 #lemma = root form, tag = fine-grained POS, pos = coarse_grained POS
 
-nlp = spacy.load('en')
+nlp = spacy.load('en_core_web_sm')
 doc = nlp(post.decode('utf-8'))
 for word in doc:
     print(word.text, word.lemma_, word.tag_, word.pos_)
@@ -57,24 +58,39 @@ for np in doc.noun_chunks:
 
 def to_nltk_tree(node):
     if node.n_lefts + node.n_rights > 0:
-        return nltk.Tree(node.orth_, [to_nltk_tree(child) for child in node.children])
+        t = nltk.Tree(node.orth_, [to_nltk_tree(child) for child in node.children])
+        return t
     else:
         return node.orth_
 
 [to_nltk_tree(sent.root).pretty_print() for sent in doc.sents]
 
-# for pos in t.treepositions():
-#         if pos not in leavepos:
-#             print(t[pos].label(), len(pos))
+def get_depths(doc):
+    depths = []
+    for sent in doc.sents:
+        depth = []
+        t = to_nltk_tree(sent.root)
+        n_leaves = len(t.leaves())
+        leavepos = set(t.leaf_treeposition(n) for n in range(n_leaves))
+        for pos in t.treepositions():
+            if pos not in leavepos:
+                depth.append(len(pos))
+        depths.append(max(depth))
+    return depths
+
+print get_depths(doc)
 
 # using pattern, good for finding chunks?
 
 p = pattern.parsetree(post, relations=True, lemmata=True)
 print repr(p)
 
+chunks = 0
 for sentence in p:
     for chunk in sentence.chunks:
+        chunks += 1
         print chunk
         print chunk.type, [(w.string, w.type) for w in chunk.words]
+print chunks
 
 print p.sentences
